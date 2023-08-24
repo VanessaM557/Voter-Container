@@ -1,13 +1,12 @@
-version: '3'
+version: '3.8'
+
 services:
   api:
-    build: ./api 
+    build: ./api
     ports:
-      - "8080:8080" 
+      - "8080:8080"
     depends_on:
       - redis
-    environment:
-      - REDIS_URL=redis://redis:6379/0 # Setting the Redis URL to connect to the Redis container
 
   redis:
     image: "redis:latest"
