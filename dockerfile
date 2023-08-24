@@ -1,24 +1,30 @@
-# Use the official Golang image to create a build artifact.
-# This is based on Debian and sets the GOPATH to /go.
-# https://hub.docker.com/_/golang
-FROM golang:1.17 AS build
+# Start from the Go base image
+FROM golang:1.21.0 AS build
 
-# Copy the local package files to the container's workspace.
-WORKDIR /go/src/app
+# Set the current working directory inside the container
+WORKDIR /app
+
+# Copy the go.mod and go.sum files to the workspace
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy the rest of the files
 COPY . .
 
-# Build the command inside the container.
-RUN go get -d -v ./...
-RUN go install -v ./...
+# Build the binary
+RUN go build -o voter-api
 
-# Use a Debian slim image for the runtime environment
+# Use a minimal image to run the application
 FROM debian:buster-slim
 
-# Copy the build artifact from the build stage.
-COPY --from=build /go/bin/app /app
+# Copy the binary
+COPY --from=build /app/voter-api /voter-api
 
 # Set the binary as the entry point of the container
-ENTRYPOINT ["/app"]
+ENTRYPOINT ["/voter-api"]
 
 # Service listens on port 8080
 EXPOSE 8080
+
