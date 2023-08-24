@@ -3,12 +3,6 @@ import (
 	"time"
 )
 
-type HealthData struct {
-	BootTime              time.Time `json:"bootTime"`
-	TotalAPICalls         int       `json:"totalApiCalls"`
-	TotalAPICallsWithError int      `json:"totalApiErrors"`
-	Uptime                string    `json:"uptime"`
-}
 
 func InitializeHealth() HealthData {
 	return HealthData{
