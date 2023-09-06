@@ -1,20 +1,12 @@
 package main
 
 import (
-	"voter-api/handlers"
-	"github.com/gin-gonic/gin"
+	"log"
+	"voter-api/api"
 )
 
 func main() {
-	r := gin.Default()
-
-	v1 := r.Group("/v1")
-	{
-		v1.POST("/voters", handlers.RegisterVoter)
-		v1.GET("/voters", handlers.GetAllVoters)
-		v1.GET("/voters/:id", handlers.GetVoterByID)
-		v1.DELETE("/voters/:id", handlers.DeleteVoter)
-	}
-
-	r.Run(":8080")
+	r := api.SetupRouter().
+	log.Fatal(r.Run(":8080")) 
 }
+
