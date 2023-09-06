@@ -11,6 +11,11 @@ type Poll struct {
 	Options  []string `json:"options"`
 }
 
+type HypermediaPoll struct {
+	Poll
+	Links map[string]string `json:"_links"`
+}
+
 var polls = []Poll{}  // Mock database for our demo
 
 // CreatePoll - creates a new poll
@@ -21,12 +26,31 @@ func CreatePoll(c *gin.Context) {
 		return
 	}
 	polls = append(polls, poll)
-	c.JSON(http.StatusOK, poll)
+	
+	// Including hypermedia links
+	hp := HypermediaPoll{
+		Poll:  poll,
+		Links: map[string]string{
+			"self": "/v1/polls/" + poll.ID,
+		},
+	}
+	c.JSON(http.StatusOK, hp)
 }
 
 // GetAllPolls - retrieves all polls
 func GetAllPolls(c *gin.Context) {
-	c.JSON(http.StatusOK, polls)
+	hypermediaPolls := []HypermediaPoll{}
+	for _, p := range polls {
+		hp := HypermediaPoll{
+			Poll:  p,
+			Links: map[string]string{
+				"self": "/v1/polls/" + p.ID,
+				"votes": "/v1/votes?pollId=" + p.ID,
+			},
+		}
+		hypermediaPolls = append(hypermediaPolls, hp)
+	}
+	c.JSON(http.StatusOK, hypermediaPolls)
 }
 
 // GetPollByID - retrieves a single poll by ID
@@ -35,7 +59,16 @@ func GetPollByID(c *gin.Context) {
 
 	for _, p := range polls {
 		if p.ID == id {
-			c.JSON(http.StatusOK, p)
+			hp := HypermediaPoll{
+				Poll:  p,
+				Links: map[string]string{
+					"self": "/v1/polls/" + p.ID,
+					"votes": "/v1/votes?pollId=" + p.ID,
+					"delete": "/v1/polls/" + p.ID,
+					"update": "/v1/polls/" + p.ID,
+				},
+			}
+			c.JSON(http.StatusOK, hp)
 			return
 		}
 	}
@@ -54,7 +87,15 @@ func UpdatePoll(c *gin.Context) {
 				return
 			}
 			polls[i] = updatedPoll  // Update the poll
-			c.JSON(http.StatusOK, updatedPoll)
+
+			hp := HypermediaPoll{
+				Poll:  updatedPoll,
+				Links: map[string]string{
+					"self": "/v1/polls/" + updatedPoll.ID,
+					"votes": "/v1/votes?pollId=" + updatedPoll.ID,
+				},
+			}
+			c.JSON(http.StatusOK, hp)
 			return
 		}
 	}
