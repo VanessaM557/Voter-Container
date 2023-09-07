@@ -3,7 +3,7 @@ package main
 import (
 	"votes-api/config"
 	"votes-api/data/models"
-	"votes-api/handlers"
+	"votes-api/api/handlers"
 	"github.com/gin-gonic/gin"
 )
 
