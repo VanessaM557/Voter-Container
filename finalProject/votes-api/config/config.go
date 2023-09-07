@@ -12,7 +12,6 @@ type Config struct {
 	APIPort       string
 }
 
-// LoadConfig loads configuration from environment variables, or sets defaults.
 func LoadConfig() *Config {
 	config := &Config{
 		RedisHost:     getEnv("REDIS_HOST", "localhost"),
