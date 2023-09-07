@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+	"os"
 	"polls-api/handlers"
 	"github.com/gin-gonic/gin"
 )
@@ -17,5 +19,13 @@ func main() {
 		v1.DELETE("/polls/:id", handlers.DeletePoll)
 	}
 
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	err := r.Run(":" + port)
+	if err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }
