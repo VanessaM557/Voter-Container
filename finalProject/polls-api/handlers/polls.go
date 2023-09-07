@@ -1,117 +1,85 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"github.com/gin-gonic/gin"
+	"your_project_path/redis"
+	"your_project_path/models"
+	"strconv"
 )
 
-type Poll struct {
-	ID       string   `json:"id"`
-	Question string   `json:"question"`
-	Options  []string `json:"options"`
-}
-
-type HypermediaPoll struct {
-	Poll
-	Links map[string]string `json:"_links"`
-}
-
-var polls = []Poll{}  // Mock database for our demo
-
-// CreatePoll - creates a new poll
 func CreatePoll(c *gin.Context) {
-	var poll Poll
+	var poll models.Poll
+	
 	if err := c.ShouldBindJSON(&poll); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	polls = append(polls, poll)
+	pollID := strconv.Itoa(rand.Int()) 
+	poll.ID = pollID
+	pollJSON, _ := json.Marshal(poll)
 	
-	// Including hypermedia links
-	hp := HypermediaPoll{
-		Poll:  poll,
-		Links: map[string]string{
-			"self": "/v1/polls/" + poll.ID,
-		},
+	err := redis.Rdb.Set(redis.Ctx, pollID, pollJSON, 0).Err()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save the poll"})
+		return
 	}
-	c.JSON(http.StatusOK, hp)
+
+	c.JSON(http.StatusCreated, poll)
 }
 
-// GetAllPolls - retrieves all polls
-func GetAllPolls(c *gin.Context) {
-	hypermediaPolls := []HypermediaPoll{}
-	for _, p := range polls {
-		hp := HypermediaPoll{
-			Poll:  p,
-			Links: map[string]string{
-				"self": "/v1/polls/" + p.ID,
-				"votes": "/v1/votes?pollId=" + p.ID,
-			},
-		}
-		hypermediaPolls = append(hypermediaPolls, hp)
-	}
-	c.JSON(http.StatusOK, hypermediaPolls)
-}
-
-// GetPollByID - retrieves a single poll by ID
-func GetPollByID(c *gin.Context) {
+func GetPoll(c *gin.Context) {
 	id := c.Param("id")
 
-	for _, p := range polls {
-		if p.ID == id {
-			hp := HypermediaPoll{
-				Poll:  p,
-				Links: map[string]string{
-					"self": "/v1/polls/" + p.ID,
-					"votes": "/v1/votes?pollId=" + p.ID,
-					"delete": "/v1/polls/" + p.ID,
-					"update": "/v1/polls/" + p.ID,
-				},
-			}
-			c.JSON(http.StatusOK, hp)
-			return
-		}
+	val, err := redis.Rdb.Get(redis.Ctx, id).Result()
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Poll not found"})
+		return
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "Poll not found"})
+
+	var poll models.Poll
+	err = json.Unmarshal([]byte(val), &poll)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse poll"})
+		return
+	}
+
+	selfLink := models.Link{Rel: "self", Href: "/polls/" + id}
+	voteLink := models.Link{Rel: "vote", Href: "/polls/" + id + "/vote"}
+	poll.Links = []models.Link{selfLink, voteLink}
+	c.JSON(http.StatusOK, poll)
 }
 
-// UpdatePoll - updates a poll by ID
 func UpdatePoll(c *gin.Context) {
-	var updatedPoll Poll
 	id := c.Param("id")
 
-	for i, p := range polls {
-		if p.ID == id {
-			if err := c.ShouldBindJSON(&updatedPoll); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			polls[i] = updatedPoll  // Update the poll
-
-			hp := HypermediaPoll{
-				Poll:  updatedPoll,
-				Links: map[string]string{
-					"self": "/v1/polls/" + updatedPoll.ID,
-					"votes": "/v1/votes?pollId=" + updatedPoll.ID,
-				},
-			}
-			c.JSON(http.StatusOK, hp)
-			return
-		}
+	var updatedPoll models.Poll
+	if err := c.ShouldBindJSON(&updatedPoll); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "Poll not found"})
+
+	updatedPollJSON, _ := json.Marshal(updatedPoll)
+	
+	err := redis.Rdb.Set(redis.Ctx, id, updatedPollJSON, 0).Err()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to update the poll"})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedPoll)
 }
 
-// DeletePoll - deletes a poll by ID
 func DeletePoll(c *gin.Context) {
 	id := c.Param("id")
 
-	for i, p := range polls {
-		if p.ID == id {
-			polls = append(polls[:i], polls[i+1:]...)
-			c.JSON(http.StatusOK, gin.H{"message": "Poll deleted"})
-			return
-		}
+	err := redis.Rdb.Del(redis.Ctx, id).Err()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete poll"})
+		return
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "Poll not found"})
+
+	c.JSON(http.StatusOK, gin.H{"message": "Poll deleted successfully"})
 }
+
