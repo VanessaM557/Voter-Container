@@ -1,23 +1,17 @@
-# Use the official Golang image as a base image
-FROM golang:1.21
+version: '3'
 
-# Set the working directory inside the container
-WORKDIR /app
+services:
+  votes-api:
+    build: ./votes-api
+    ports:
+      - "8081:8080"
+  
+  polls-api:
+    build: ./polls-api
+    ports:
+      - "8082:8080"
 
-# Copy the go.mod and go.sum files to the working directory
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy the rest of the code to the working directory
-COPY . .
-
-# Build the Go app
-RUN go build -o main .
-
-# Expose port 8080 to the outside
-EXPOSE 8080
-
-# Command to run the application
-CMD ["./main"]
+  redis:
+    image: "redis:latest"
+    ports:
+      - "6379:6379"
